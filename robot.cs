@@ -32,6 +32,14 @@ using Il2CppAssets.Scripts.Models.Towers.Filters;
 using Il2CppAssets.Scripts.Models.Bloons.Behaviors;
 using System.Linq;
 using static Il2CppAssets.Scripts.Models.Rounds.FreeplayBloonGroupModel;
+using BTD_Mod_Helper.Api;
+using Il2CppNinjaKiwi.Common.ResourceUtils;
+using Il2CppAssets.Scripts.Models.GenericBehaviors;
+using BTD_Mod_Helper.Api.ModOptions;
+using Il2CppAssets.Scripts.Simulation.Objects;
+using Il2CppAssets.Scripts.Unity.Audio;
+using HarmonyLib;
+using Il2CppAssets.Scripts.Data.Gameplay.Mods;
 
 
 
@@ -43,6 +51,25 @@ namespace robot;
 
 public class robot : BloonsTD6Mod
 {
+    public int LastPortalSound;
+    public float LastSoundAgo;
+    public float LastHubSoundAgo;
+    [HarmonyPatch(typeof(AudioFactory), "Start")]
+    public class AudioFactoryStart_Patch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(AudioFactory __instance)
+        {
+            foreach (UnityEngine.Object asset in ModContent.GetBundle<robot>("robot").LoadAllAssetsAsync<AudioClip>().allAssets)
+            {
+                __instance.RegisterAudioClip(asset.name, asset.Cast<AudioClip>());
+            }
+        }
+    }
+    public static void PlaySound(string name)
+    {
+        Game.instance.audioFactory.PlaySoundFromUnity(null, name, "Fx", -1, 1f, 0, false, "", false, false, true, Il2CppAssets.Scripts.Unity.Bridge.AudioType.FX);
+    }
     public override void OnApplicationStart()
     {
         ModHelper.Msg<robot>("You got terminated!");
@@ -52,6 +79,10 @@ public class robot : BloonsTD6Mod
         System.Random random = new System.Random();
         return random.Next(min, max);
     }
+    public static readonly ModSettingHotkey RobotMonkeyHotkey = new(KeyCode.R, HotkeyModifier.Shift)
+    {
+        icon = ModContent.GetTextureGUID<robot>("Icon"),
+    };
     private static float MovmentSpeed = 1.2f;
     public Il2CppAssets.Scripts.Simulation.SMath.Vector2 CalculateNewPosition(float oldPosX, float oldPosY, float oldPosZ, float directionDegrees)
     {
@@ -64,13 +95,65 @@ public class robot : BloonsTD6Mod
 
         return new Il2CppAssets.Scripts.Simulation.SMath.Vector2(newX, newZ);
     }
+    public override void OnTowerCreated(Tower tower, Entity target, Model modelToUse)
+    {
+        if (tower != null && tower.towerModel.name.Contains("Robot"))
+        {
+            PlayRandomVoiceline();
+        }
+    }
+    public override void OnTowerSelected(Tower tower)
+    {
+        if (tower != null && tower.towerModel.name.Contains("Robot"))
+        {
+            PlayRandomVoiceline();
+        }
+    }
+    public void PlayRandomVoiceline()
+    {
+        if(LastSoundAgo < 0)
+        {
+            LastSoundAgo = 10;
+            int random1 = rnd(1, 8);
+            while (LastPortalSound == random1)
+            {
+                random1 = rnd(1, 8);
+            }
+            LastPortalSound = random1;
+            switch (random1)
+            {
+                case 1:
+                    PlaySound("1");
+                    break;
+                case 2:
+                    PlaySound("2");
+                    break;
+                case 3:
+                    PlaySound("3");
+                    break;
+                case 4:
+                    PlaySound("4");
+                    break;
+                case 5:
+                    PlaySound("5");
+                    break;
+                case 6:
+                    PlaySound("6");
+                    break;
+                case 7:
+                    PlaySound("7");
+                    break;
+            }
+        }
+    }
     public override void OnUpdate()
     {
         if (InGameData.CurrentGame != null && InGame.Bridge != null)
         {
             List<Tower> towers = InGame.instance.GetTowers();
             int TC = towers.Count;
-
+            LastSoundAgo -= 0.025f;
+            LastHubSoundAgo -= 0.025f;
             for (int i = 0; i < TC; i++)
             {
                 if (towers[i] != null && towers[i].towerModel.name.Contains("Robot"))
@@ -79,10 +162,40 @@ public class robot : BloonsTD6Mod
                     if (Input.GetKey(KeyCode.Tab) && towers[i].towerModel.tiers[0] >= 2)
                     {
                         TabBooster = 2;
-                        //ModHelper.Msg<robot>("Tab");
                     }
-                    
-                    
+                    if ((Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.LeftShift)) && LastHubSoundAgo < 0)
+                    {
+                        PlaySound("8");
+                        LastHubSoundAgo = 6;
+                    }
+                    if (rnd(1, 9999) == 22)
+                    {
+                        int random1 = rnd(1, 8);
+                        switch (random1)
+                        {
+                            case 1:
+                                towers[i].ShowTowerEffect("When I grow up, I want to be like Arnold Schwarzenegger, a real Terminator", 100000f);
+                                break;
+                            case 2:
+                                towers[i].ShowTowerEffect("Luckily, no one knows that pressing LeftShift makes hub noises", 100000f);
+                                break;
+                            case 3:
+                                towers[i].ShowTowerEffect("I hope the German Bloons scene gets revived someday... I really miss Bador's Bloons times", 100000f);
+                                break;
+                            case 4:
+                                towers[i].ShowTowerEffect("Legends say that blue Barney destroyed Bergbauer's hard drive...", 100000f);
+                                break;
+                            case 5:
+                                towers[i].ShowTowerEffect("Another fever dream mod... **** you, Bergbauer.", 100000f);
+                                break;
+                            case 6:
+                                towers[i].ShowTowerEffect("I wish I were as lucky as Dirk and had a cool voice, not such a load of crap", 100000f);
+                                break;
+                            case 7:
+                                towers[i].ShowTowerEffect("You definitely have to check out the Hypixel Skyblock Minecraft server. You can waste time there for free (just kidding)", 100000f);
+                                break;
+                        }
+                    }
                     for (int i2 = 0; i2 < TimeManager.networkScale * TabBooster; i2++)
                     {
 
@@ -206,7 +319,95 @@ public class Robot003DP : ModCustomDisplay
     public override string AssetBundleName => "robot";
     public override string PrefabName => "Robot_003";
     public override float Scale => 1;
+}
+public class Robot400DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_400";
+    public override float Scale => 1;
 
+
+}
+public class Robot040DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_040";
+    public override float Scale => 1;
+
+}
+public class Robot004DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_004";
+    public override float Scale => 1;
+
+}
+public class Robot500DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_500";
+    public override float Scale => 1;
+
+
+}
+public class Robot050DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_050";
+    public override float Scale => 1;
+
+}
+public class Robot005DP : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_005";
+    public override float Scale => 1;
+
+}
+public class RobotParagonGUID : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_Paragon";
+    public override float Scale => 1;
+
+}
+public class Robot_Paragon_DP : ModTowerCustomDisplay<RobotTower>
+{
+    public override float Scale => 1.0f + ParagonDisplayIndex * .025f;  // Higher degree Paragon displays will be bigger
+
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "Robot_Paragon";
+    public override bool UseForTower(int[] tiers)
+    {
+        return IsParagon(tiers);
+    }
+    public Robot_Paragon_DP()
+    {
+
+    }
+    public Robot_Paragon_DP(int i)
+    {
+        ParagonDisplayIndex = i;
+    }
+
+    public override int ParagonDisplayIndex { get; }  // Overriding in this way lets us set it in the constructor
+
+    public override IEnumerable<ModContent> Load()
+    {
+        for (var i = 0; i < TotalParagonDisplays; i++)
+        {
+            yield return new Robot_Paragon_DP(i);
+        }
+    }
+
+
+    public override string Name => nameof(Robot_Paragon_DP) + ParagonDisplayIndex;  // make sure each instance has its own name
+
+    public override void ModifyDisplayNode(UnityDisplayNode node)
+    {
+        SetMeshTexture(node, nameof(Robot_Paragon_DP));
+        
+    }
 }
 public class Fireball : ModCustomDisplay
 {
@@ -222,6 +423,14 @@ public class Fireball300 : ModCustomDisplay
     public override float Scale => 1;
 
 }
+public class FireballGreen555 : ModCustomDisplay
+{
+    public override string AssetBundleName => "robot";
+    public override string PrefabName => "FireballGreen555";
+    public override float Scale => 1;
+
+}
+
 public class Fireball003 : ModCustomDisplay
 {
     public override string AssetBundleName => "robot";
@@ -234,6 +443,11 @@ public class Robo_Buff : ModBuffIcon
     public override string Icon => "Icon";
     public override int MaxStackSize => 0;
 }
+public class Robo_Paragon_Buff : ModBuffIcon
+{
+    public override string Icon => "Paragon_Buff";
+    public override int MaxStackSize => 0;
+}
 public class RobotTower : ModTower
 {
     public override string DisplayName => "Robot";
@@ -244,11 +458,21 @@ public class RobotTower : ModTower
     public override int TopPathUpgrades => 5;
     public override int MiddlePathUpgrades => 5;
     public override int BottomPathUpgrades => 5;
+    
     public override string Portrait => "Icon";
     public override string Icon => "Icon";
+    public override ParagonMode ParagonMode => ParagonMode.Base000;
+    public override ModSettingHotkey Hotkey => robot.RobotMonkeyHotkey;
+
     public override string Description => "I'm going to terminate every Monk...i mean bloon";
     public override void ModifyBaseTowerModel(TowerModel towerModel)
     {
+        
+
+
+
+
+
         towerModel.ApplyDisplay<RobotDP>();
         towerModel.GetAttackModel().weapons[0].projectile.ApplyDisplay<Fireball>();
         towerModel.range *= 1.3f;
@@ -256,9 +480,13 @@ public class RobotTower : ModTower
         towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().lifespan = 2;
         towerModel.GetAttackModel().weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.Purple;
         towerModel.GetAttackModel().weapons[0].projectile.pierce = 5;
+        towerModel.GetAttackModel().weapons[0].ejectY = 0;
+        towerModel.GetAttackModel().weapons[0].ejectX = 0;
+        towerModel.GetAttackModel().weapons[0].ejectZ = -1;
         towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().speed = 120f;
     }
-
+    public override bool IsValidCrosspath(int[] tiers) =>
+    ModHelper.HasMod("UltimateCrosspathing") || base.IsValidCrosspath(tiers);
 }
 public class M_1 : ModUpgrade<RobotTower>
 {
@@ -269,7 +497,7 @@ public class M_1 : ModUpgrade<RobotTower>
     public override string DisplayName => "Actually hot!";
     public override string Description => "You can set Bloons on fire now";
 
-
+    public override string Portrait => "Portrait_010";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -288,7 +516,7 @@ public class B_1 : ModUpgrade<RobotTower>
     public override string DisplayName => "Chat GPT V.2";
     public override string Description => "Towers in your range recieves a small Attack-Buff";
 
-
+    public override string Portrait => "Portrait_001";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -312,7 +540,7 @@ public class T_1 : ModUpgrade<RobotTower>
     public override string DisplayName => "Speedhack!";
     public override string Description => "You attack 15% faster";
 
-
+    public override string Portrait => "Portrait_100";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -328,7 +556,7 @@ public class M_2 : ModUpgrade<RobotTower>
     public override string DisplayName => "Aim Assist";
     public override string Description => "Your Projectiles aim a bit towards the Bloons";
 
-
+    public override string Portrait => "Portrait_020";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -347,7 +575,7 @@ public class B_2 : ModUpgrade<RobotTower>
 
     public override string DisplayName => "Robot Stuff!";
     public override string Description => "You clean the Tarn Ability away from Bloons!";
-
+    public override string Portrait => "Portrait_002";
     public override void ApplyUpgrade(TowerModel towerModel)
     {
         var Spray = Game.instance.model.GetTower(TowerType.MonkeySub, 3,0,0).GetAttackModel(1).Duplicate();
@@ -363,7 +591,7 @@ public class T_2 : ModUpgrade<RobotTower>
     public override string DisplayName => "Integrated Booster!";
     public override string Description => "You move 200% faster if the key 'Tab' is pressed";
 
-
+    public override string Portrait => "Portrait_200";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -377,9 +605,9 @@ public class M_3 : ModUpgrade<RobotTower>
     public override int Cost => 7500;
 
     public override string DisplayName => "Fire Aura";
-    public override string Description => "You are kinda hot.....like Isab";
+    public override string Description => "You are kinda hot.....like Isab but in generell this Upgrade adds a Fire Aura attack";
 
-
+    public override string Portrait => "Portrait_030";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -405,7 +633,8 @@ public class B_3 : ModUpgrade<RobotTower>
     public override int Cost => 5200;
 
     public override string DisplayName => "Integrated Bloonshipper!";
-    public override string Description => "You change your fire into Air acc Bloonshipper!";
+    public override string Description => "You shoot homing Tornados towards the Bloons";
+    public override string Portrait => "Portrait_003";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -448,12 +677,12 @@ public class T_3 : ModUpgrade<RobotTower>
 {
     public override int Path => Top;
     public override int Tier => 3;
-    public override int Cost => 3500;
+    public override int Cost => 5600;
 
     public override string DisplayName => "Anti Offtrack!";
-    public override string Description => "You always move towards the bloons and place some cacteen on the track it";
+    public override string Description => "You always move towards the Bloons, and occasionally, cacti are placed along the track";
 
-
+    public override string Portrait => "Portrait_300";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
@@ -461,9 +690,10 @@ public class T_3 : ModUpgrade<RobotTower>
         towerModel.GetAttackModel().weapons[0].projectile.ApplyDisplay<Fireball300>();
         towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().speed = 160f;
         var Spike = Game.instance.model.GetTower(TowerType.NinjaMonkey, 0, 0, 2).GetAttackModel(1).Duplicate();
-        Spike.range = 99;
+        Spike.range = 9;
         Spike.weapons[0].rate *= 2f;
         Spike.weapons[0].projectile.ApplyDisplay<Cactus1DP>();
+        
         Spike.weapons[0].projectile.pierce = 12;
         Spike.weapons[0].projectile.GetDamageModel().damage = 8;
         var SpikeExplosionProjectile = Game.instance.model.GetTower(TowerType.BoomerangMonkey, 2, 0, 2).GetAttackModel().weapons[0].projectile.Duplicate();
@@ -475,11 +705,11 @@ public class T_3 : ModUpgrade<RobotTower>
         SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Ceramic", "Ceramic", 1, 7, false, false));
         SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Moab", "Moab", 1, 6, false, true));
         SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Bfb", "Bfb", 1, 8, false, true));
-        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Zomg", "Zomg", 1, 16, false, true));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Zomg", "Zomg", 1, 13, false, true));
         SpikeExplosionProjectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
         Spike.weapons[0].projectile.AddBehavior(new CreateProjectileOnExpireModel("SpectralShards", SpikeExplosionProjectile, new ArcEmissionModel("", 9, 0, 360, null, false, false), false));
         Spike.weapons[0].projectile.AddBehavior(new CreateProjectileOnExhaustFractionModel("SpectralShards", SpikeExplosionProjectile, new ArcEmissionModel("", 9, 0, 360, null, false, false), 1, 1, false, false, true));
-        //towerModel.AddBehavior(Spike);
+        towerModel.AddBehavior(Spike);
         var Aim = Game.instance.model.GetTower(TowerType.SniperMonkey, 1, 2, 0).GetAttackModel(0).Duplicate();
         Aim.weapons[0].rate = 0.8f;
         towerModel.AddBehavior(Aim);
@@ -490,15 +720,16 @@ public class M_4 : ModUpgrade<RobotTower>
 {
     public override int Path => Middle;
     public override int Tier => 4;
-    public override int Cost => 12500;
+    public override int Cost => 10500;
 
-    public override string DisplayName => "Fire Aura";
-    public override string Description => "You are kinda hot.....like Isab";
+    public override string DisplayName => "Balls of Fire";
+    public override string Description => "You have now a global range Fire-Shooting Attack. Ability: Shoot 8 gigantic Fireballs around you";
 
-
+    public override string Portrait => "Portrait_040";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
+        towerModel.ApplyDisplay<Robot040DP>();
         var OldAttackModel = towerModel.GetAttackModel().Duplicate();
         TowerModelBehaviorExt.GetBehavior<AttackModel>(towerModel).fireWithoutTarget = true;
         towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().speed = 175;
@@ -544,16 +775,16 @@ public class B_4 : ModUpgrade<RobotTower>
 {
     public override int Path => Bottom;
     public override int Tier => 4;
-    public override int Cost => 12000;
+    public override int Cost => 9600;
 
-    public override string DisplayName => "Integrated Bloonshipper!";
-    public override string Description => "You can also push Moab Bloons Aside and also sometimes shoot stunnig Ligtnings";
+    public override string DisplayName => "Upgraded Bloonshipper!";
+    public override string Description => "You can push MOABs aside and sometimes shoot stunnig ligtnings at every enemy";
+    public override string Portrait => "Portrait_004";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
+        towerModel.ApplyDisplay<Robot004DP>();
         var attackModel = towerModel.GetAttackModel();
-        
-
         var lightning = Game.instance.model.GetTower(TowerType.Druid, 2).GetAttackModel().Duplicate();
         lightning.RemoveBehavior<RotateToTargetModel>();
         lightning.GetDescendants<FilterInvisibleModel>().ForEach(model => model.isActive = false);
@@ -593,15 +824,16 @@ public class T_4 : ModUpgrade<RobotTower>
 {
     public override int Path => Top;
     public override int Tier => 4;
-    public override int Cost => 12000;
+    public override int Cost => 12500;
 
-    public override string DisplayName => "Spike";
-    public override string Description => "You shoot spikes ";
+    public override string DisplayName => "Cactus Man";
+    public override string Description => "You launch spikes in all directions";
 
-
+    public override string Portrait => "Portrait_400";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
+        towerModel.ApplyDisplay<Robot400DP>();
         var attackModel1 = Game.instance.model.GetTower(TowerType.SuperMonkey, 0, 0, 2).GetAttackModel().Duplicate();
         attackModel1.weapons[0].rate = 3;
         attackModel1.fireWithoutTarget = true;
@@ -623,8 +855,9 @@ public class T_4 : ModUpgrade<RobotTower>
         }
         if (towerModel.appliedUpgrades.Contains(UpgradeID<T_5>()))
         {
+            attackModel1.weapons[0].emission = new ArcEmissionModel("fireballSmall", 24, 0, 360, null, false, false);
             attackModel1.weapons[0].rate = 1.5f;
-            attackModel1.weapons[0].projectile.GetDamageModel().damage = 50;
+            attackModel1.weapons[0].projectile.GetDamageModel().damage = 51;
             attackModel1.weapons[0].projectile.pierce = 3;
             attackModel1.weapons[0].projectile.maxPierce = 20;
             var bomb = Game.instance.model.GetTower(TowerType.BombShooter, 0).GetAttackModel().weapons[0].projectile.Duplicate();
@@ -633,8 +866,8 @@ public class T_4 : ModUpgrade<RobotTower>
 
             blast.GetDamageModel().damage = 8;
             blast.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Ceramic", "Ceramic", 1, 12, false, false));
-            blast.radius = 15;
-            blast.pierce = 30;
+            blast.radius = 25;
+            blast.pierce = 32;
             blast.GetDescendants<FilterInvisibleModel>().ForEach(model => model.isActive = false);
             var contactModel = new CreateProjectileOnContactModel("smallExplosion", blast, new ArcEmissionModel("ArcEmissionModel_", 1, 0, 0, null, false, false), true, false, false)
             { name = "RifleBlast_" };
@@ -649,24 +882,22 @@ public class M_5 : ModUpgrade<RobotTower>
 {
     public override int Path => Middle;
     public override int Tier => 5;
-    public override int Cost => 12500;
+    public override int Cost => 32500;
 
-    public override string DisplayName => "Fire Aura";
-    public override string Description => "You are kinda hot.....like Isab";
-
-
-
+    public override string DisplayName => "Overheated like Isab";
+    public override string Description => "Your Ability now shoots 16 Fireballs in 3 bursts";
+    public override string Portrait => "Portrait_050";
     public override void ApplyUpgrade(TowerModel towerModel)
     {
-
-
+        towerModel.GetAttackModel().weapons[0].rate *= 0.75f;
+        towerModel.ApplyDisplay<Robot050DP>();
 
 
         //Ability
         towerModel.RemoveBehavior<AbilityModel>();
-        var abilityModel = new AbilityModel("AbilityModel_Middle_4", "SmallFire",
+        var abilityModel = new AbilityModel("AbilityModel_Middle_5", "SmallFire",
             "s", 0, 0,
-            GetSpriteReference("040"), 90f, null, false, false, null,
+            GetSpriteReference("050"), 85f, null, false, false, null,
             0, 0, 9999999, false, false);
 
         var activateAttackModel = new ActivateAttackModel("ActivateAttackModel_SmallFire", 2.1f, true, new Il2CppReferenceArray<AttackModel>(1), true, false, false, false, false);
@@ -683,7 +914,7 @@ public class M_5 : ModUpgrade<RobotTower>
         attackModel1.weapons[0].projectile.pierce = 99999999;
         attackModel1.weapons[0].projectile.maxPierce = 99999999;
         attackModel1.weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
-        attackModel1.weapons[0].projectile.GetDamageModel().damage = 750;
+        attackModel1.weapons[0].projectile.GetDamageModel().damage = 751;
         attackModel1.weapons[0].projectile.GetBehavior<TravelStraitModel>().lifespan *= 10;
         attackModel1.weapons[0].projectile.GetBehavior<TravelStraitModel>().speed *= 0.5f;
         activateAttackModel.AddChildDependant(attackModel1);
@@ -694,29 +925,147 @@ public class B_5 : ModUpgrade<RobotTower>
 {
     public override int Path => Bottom;
     public override int Tier => 5;
-    public override int Cost => 12000;
+    public override int Cost => 42500;
 
-    public override string DisplayName => "Integrated Bloonshipper!";
-    public override string Description => "You can also push Moab Bloons Aside";
-
+    public override string DisplayName => "Living Hurricane";
+    public override string Description => "There's a little bit of Bloon in the air";
+    public override string Portrait => "Portrait_005";
     public override void ApplyUpgrade(TowerModel towerModel)
     {
-
+        towerModel.ApplyDisplay<Robot005DP>();
     }
 }
 public class T_5 : ModUpgrade<RobotTower>
 {
     public override int Path => Top;
     public override int Tier => 5;
-    public override int Cost => 25000;
+    public override int Cost => 37500;
 
-    public override string DisplayName => "Anti Offtrack!";
-    public override string Description => "You always move towards the bloons and place some cacteen on the track it";
-
-
+    public override string DisplayName => "Cactus God";
+    public override string Description => "What's better than spikes? Exploding spikes!";
+    public override string Portrait => "Portrait_500";
+    public override void ApplyUpgrade(TowerModel towerModel)
+    {
+        towerModel.ApplyDisplay<Robot500DP>();
+        towerModel.GetAttackModel().weapons[0].rate *= 0.33f;
+        towerModel.GetAttackModel().range *= 1.5f;
+        towerModel.GetAttackModel().weapons[0].projectile.GetDamageModel().damage += 8;
+        towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().speed *= 1.25f;
+        towerModel.GetAttackModel().weapons[0].projectile.pierce += 15;
+    }
+}
+public class Paragon : ModParagonUpgrade<RobotTower>
+{
+    public override int Cost => 900000;
+    public override string Description => "Hasta la vista ,Baby! Every Level grants you 2% more damage and other bosting effects";
+    public override string DisplayName => "Terminator";
+    public override string Portrait => "Paragon";
+    public override string Icon => "Paragon";
 
     public override void ApplyUpgrade(TowerModel towerModel)
     {
+        int ParagonLevel = towerModel.tier;
+        
 
+        //AttackOne
+        towerModel.ApplyDisplay<Robot_Paragon_DP>();
+        towerModel.GetAttackModel().weapons[0].projectile.ApplyDisplay<Fireball003>();
+        towerModel.GetAttackModel().weapons[0].emission = new ArcEmissionModel("paragonAttack", 16, 0, 360, null, false, false);
+        towerModel.GetAttackModel().fireWithoutTarget = true;
+        towerModel.GetAttackModel().weapons[0].rate = 1.25f;
+        towerModel.GetAttackModel().weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
+        towerModel.GetAttackModel().weapons[0].projectile.pierce = 50 + ParagonLevel * 1;
+        towerModel.GetAttackModel().weapons[0].projectile.GetDamageModel().damage = 1000 + ParagonLevel * 20;
+        towerModel.GetAttackModel().weapons[0].projectile.AddBehavior(new WindModel("WindModel_", 16, 20, 1f, true, null, 1.15f, "Ddt", 2));
+        towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().lifespan *= 4;
+        towerModel.GetAttackModel().weapons[0].projectile.GetBehavior<TravelStraitModel>().speed *= 6f;
+        towerModel.GetAttackModel().weapons[0].projectile.ignoreBlockers = true;
+        towerModel.GetAttackModel().weapons[0].projectile.canCollisionBeBlockedByMapLos = false;
+        var aimAssist = Game.instance.model.GetTowerFromId("Adora 20").GetAttackModel().weapons[0].projectile.GetBehavior<AdoraTrackTargetModel>().Duplicate();
+        aimAssist.maximumSpeed = 110;
+        aimAssist.minimumSpeed = 100;
+        towerModel.GetAttackModel().weapons[0].projectile.AddBehavior(aimAssist);
+        //AttackTwo
+        var am2 = Game.instance.model.GetTower(TowerType.DartMonkey, 0, 0, 2).GetAttackModel(0).Duplicate();
+        am2.fireWithoutTarget = true;
+        am2.weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
+        am2.weapons[0].ejectY = 0;
+        am2.weapons[0].ejectX = 0;
+        am2.weapons[0].ejectZ = -6;
+        am2.weapons[0].projectile.GetDamageModel().damage = 400 + ParagonLevel * 4f;
+        am2.weapons[0].projectile.AddBehavior(new FreezeModel("FreezeModel_", 0.01f, 3.5f, "LigntningStun", 999, "Stun", true, new GrowBlockModel("GrowBlockModel_"), null, 1f, true, true));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Fortified", "Fortified", 2, 0, false, false));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Ddt", "Ddt", 2, 0, false, true));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Ceramic", "Ceramic", 3, 0, false, false));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("Moab", "Moab", 1.25f, 0, false, true));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("Bfb", "Bfb", 1.5f, 0, false, true));
+        am2.weapons[0].projectile.AddBehavior(new DamageModifierForTagModel("Zomg", "Zomg", 1.75f, 0, false, true));
+        am2.weapons[0].projectile.pierce = 5;
+        am2.weapons[0].projectile.GetBehavior<TravelStraitModel>().lifespan *= 2.5f;
+        am2.weapons[0].projectile.GetBehavior<TravelStraitModel>().speed *= 9f;
+        am2.weapons[0].projectile.ignoreBlockers = true;
+        am2.weapons[0].projectile.canCollisionBeBlockedByMapLos = false;
+        am2.weapons[0].projectile.ApplyDisplay<FireballGreen555>();
+        am2.weapons[0].rate = 0.2f;
+        towerModel.AddBehavior(am2);
+        //AttackThree
+        var Spike = Game.instance.model.GetTower(TowerType.NinjaMonkey, 0, 0, 2).GetAttackModel(1).Duplicate();
+        Spike.range = 9;
+        Spike.weapons[0].rate *= 6f;
+        Spike.weapons[0].projectile.ApplyDisplay<BigCactus1DP>();
+        Spike.weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
+        Spike.weapons[0].projectile.pierce = 100;
+        Spike.weapons[0].projectile.GetDamageModel().damage = 500 + ParagonLevel * 10;
+        var SpikeExplosionProjectile = Game.instance.model.GetTower(TowerType.BoomerangMonkey, 2, 0, 2).GetAttackModel().weapons[0].projectile.Duplicate();
+        SpikeExplosionProjectile.pierce = 30;
+        SpikeExplosionProjectile.ApplyDisplay<Big_Fire_Spike>();
+        SpikeExplosionProjectile.GetDamageModel().damage = 5000 + ParagonLevel * 100;
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Fortified", "Fortified", 3, 8, false, false));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("DamageModifierForTagModel_Ddt", "Ddt", 4, 18, false, true));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Moab", "Moab", 1, 600, false, true));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Bfb", "Bfb", 1, 1200, false, true));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Zomg", "Zomg", 1, 2400, false, true));
+        SpikeExplosionProjectile.AddBehavior(new DamageModifierForTagModel("Bad", "Bad", 1, 5000, false, true));
+        SpikeExplosionProjectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
+        Spike.weapons[0].projectile.AddBehavior(new CreateProjectileOnExpireModel("SpectralShards", SpikeExplosionProjectile, new ArcEmissionModel("", 22, 0, 360, null, false, false), false));
+        Spike.weapons[0].projectile.AddBehavior(new CreateProjectileOnExhaustFractionModel("SpectralShards", SpikeExplosionProjectile, new ArcEmissionModel("", 18, 0, 360, null, false, false), 1, 1, false, false, true));
+        towerModel.AddBehavior(Spike);
+        var Aim = Game.instance.model.GetTower(TowerType.SniperMonkey, 2, 4, 0).GetAttackModel(0).Duplicate();
+        Aim.weapons[0].rate = 1.2f;
+        towerModel.AddBehavior(Aim);
+        //AbilityOne
+        var abilityModel = new AbilityModel("AbilityModel_Paragon", "TotalBurn",
+         "s", 0, 0,
+        GetSpriteReference("ParagonUltaFire"), 90f, null, false, false, null,
+        0, 0, 9999999, false, false);
+        var activateAttackModel = new ActivateAttackModel("ActivateAttackModel_SmallFire", 3.1f, true, new Il2CppReferenceArray<AttackModel>(1), true, false, false, false, false);
+        abilityModel.AddBehavior(activateAttackModel);
+        var attackModel1 = activateAttackModel.attacks[0] = Game.instance.model.GetTower(TowerType.SuperMonkey, 0, 0, 2).GetAttackModel().Duplicate();
+        attackModel1.range = 2000;
+        attackModel1.weapons[0].rate = 0.5f;
+        attackModel1.fireWithoutTarget = true;
+        attackModel1.attackThroughWalls = true;
+        attackModel1.weapons[0].emission = new ArcEmissionModel("fireballSmall", 32, 0, 360, null, false, false);
+        attackModel1.weapons[0].projectile.ignoreBlockers = true;
+        attackModel1.weapons[0].projectile.canCollisionBeBlockedByMapLos = false;
+        attackModel1.weapons[0].projectile.ApplyDisplay<BigFireDisplay>();
+        attackModel1.weapons[0].projectile.pierce = 99999999;
+        attackModel1.weapons[0].projectile.maxPierce = 99999999;
+        attackModel1.weapons[0].projectile.GetDamageModel().immuneBloonProperties = BloonProperties.None;
+        attackModel1.weapons[0].projectile.GetDamageModel().damage = 2500 + ParagonLevel * 50;
+        attackModel1.weapons[0].projectile.GetBehavior<TravelStraitModel>().lifespan *= 8;
+        attackModel1.weapons[0].projectile.GetBehavior<TravelStraitModel>().speed *= 0.8f;
+        activateAttackModel.AddChildDependant(attackModel1);
+        towerModel.AddBehavior(abilityModel);
+        //BuffOne
+        var Buff1 = new RangeSupportModel("RangeSupport", true, 0.25f+ 0.005f * ParagonLevel, 0, "Range:Support", null, false, null, null);
+        var Buff2 = new PierceSupportModel("PierceSupport", true, 2f + 0.04f * ParagonLevel, "Pierce:Support", null, false, "PierceBuff", "Zombey_Buff");
+        var Buff3 = new RateSupportModel("SpeedBuff", 0.80f - 0.004f * ParagonLevel, true, "Rate:Support", false, 1, null, "Speed", "maudado_Buff", false);
+        var Buff4 = new DamageSupportModel("DamageAddaptive", true, 10 + 0.2f * ParagonLevel, "Damage:Support", null, false, false, 0);
+        Buff1.ApplyBuffIcon<Robo_Paragon_Buff>();
+        towerModel.AddBehavior(Buff2);
+        towerModel.AddBehavior(Buff3);
+        towerModel.AddBehavior(Buff4);
+        towerModel.AddBehavior(Buff1);
     }
 }

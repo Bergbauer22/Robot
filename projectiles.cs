@@ -2,6 +2,7 @@
 using BTD_Mod_Helper.Extensions;
 using Il2CppAssets.Scripts.Unity.Display;
 using Il2CppNinjaKiwi.Common.ResourceUtils;
+using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,18 @@ using UnityEngine;
 
 namespace robot
 {
+    [RegisterTypeInIl2Cpp(false)]
+    public class Rotation : MonoBehaviour
+    {
+        public Rotation(IntPtr ptr) : base(ptr)
+        {
+        }
+        private void FixedUpdate()
+        {
+            transform.Rotate(0, 5, 0);
+        }
+    }
+
     public class Small_Spike : ModDisplay
     {
         public override string BaseDisplay => Generic2dDisplay;
@@ -25,6 +38,13 @@ namespace robot
         public override void ModifyDisplayNode(UnityDisplayNode node)
         { Set2DTexture(node, "Small_Fire_Spike"); }
     }
+    public class Big_Fire_Spike : ModDisplay
+    {
+        public override string BaseDisplay => Generic2dDisplay;
+        public override float Scale => 0.5f;
+        public override void ModifyDisplayNode(UnityDisplayNode node)
+        { Set2DTexture(node, "Small_Fire_Spike"); }
+    }
     public class Cactus1DP : ModCustomDisplay
     {
         public override string AssetBundleName => "robot";
@@ -32,12 +52,16 @@ namespace robot
         public override float Scale => 1;
         public override void ModifyDisplayNode(UnityDisplayNode node)
         {
-            foreach (var meshRenderer in node.GetMeshRenderers())
-            {
-                //meshRenderer.ApplyOutlineShader();
-
-                //meshRenderer.SetOutlineColor( new Color(1f, 1f, 1f));
-            }
+        }
+    }
+    public class BigCactus1DP : ModCustomDisplay
+    {
+        public override string AssetBundleName => "robot";
+        public override string PrefabName => "Cactus_2_Big";
+        public override float Scale => 1;
+        public override void ModifyDisplayNode(UnityDisplayNode node)
+        {
+            node.transform.GetChild(0).gameObject.AddComponent<Rotation>();
         }
     }
     public class SmallFireDisplay : ModDisplay
