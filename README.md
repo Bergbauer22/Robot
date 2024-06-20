@@ -6,6 +6,6 @@
 Robot
 </h1>
 
-This Mod adds the Robot Tower into the game
+This Mod adds the Robot Tower into the game. The Robot Tower have 15 unique Upgrades + 1 Paragon Upgrade. I personally recommend playing this mod on the Steam version. If using the Epic Games version, it should be played without any other mods except for the Mod Helper Mods.
 
 [![Requires BTD6 Mod Helper](https://raw.githubusercontent.com/gurrenm3/BTD-Mod-Helper/master/banner.png)](https://github.com/gurrenm3/BTD-Mod-Helper#readme)
